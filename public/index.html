@@ -82,10 +82,10 @@
           }
           
           // otherwise...
-          // update the potatoHolderNumber to the player clicked on
+          // set the potatoHolderNumber to be the player that was clicked on
           potatoHolderNumber = i;
           
-          // tell the server who i clicked on
+          // tell the server who the client clicked on
           ws.send(JSON.stringify({
             type: CLIENT_MESSAGE.PASS_POTATO,
             payload: { newPotatoHolderNumber: i }
@@ -143,8 +143,8 @@
               break;
             case SERVER_BROADCAST.NEW_POTATO_HOLDER:
               // update the current potatoHolderNumber
-              potatoHolderNumber = newPotatoHolderNumber
-              updateCurrentPotatoHolder(payload.newPotatoHolderNumber);
+              potatoHolderNumber = payload.newPotatoHolderNumber
+              updateCurrentPotatoHolder(potatoHolderNumber);
               break;
               case SERVER_BROADCAST.GAME_OVER:
                 gameIsRunning = false;
