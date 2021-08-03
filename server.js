@@ -1,37 +1,29 @@
+const CONSTANTS = require('./utils/constants.js');
 const http = require('http');
-const WebSocket = require('ws');
 const fs = require('fs');
+const path = require('path');
+const WebSocket = require('ws');
 
 // Constants
-const PORT = process.env.PORT || 8080;
-const MAX_TIME = 30;
-const CLIENT_MESSAGE = {
-  NEW_USER: 'NEW_USER',
-  PASS_POTATO: 'PASS_POTATO',
-};
-const SERVER_MESSAGE = {
-  PLAYER_ASSIGNMENT: 'PLAYER_ASSIGNMENT',
-  GAME_FULL: 'GAME_FULL',
-};
-const SERVER_BROADCAST = {
-  COUNTDOWN: 'COUNTDOWN',
-  NEW_POTATO_HOLDER: 'NEW_POTATO_HOLDER',
-  GAME_OVER: 'GAME_OVER',
-  GAME_START: 'GAME_START',
-}
+const { PORT, MAX_TIME, CLIENT, SERVER } = CONSTANTS;
 
 // Application Variables;
-let players = [];
+const players = [];
 
 // Create the HTTP server
 const server = http.createServer((req, res) => {
-  if (req.url === '/styles.css') {
-    res.writeHead(200, { 'Content-Type': 'text/css' }); // http header
-    fs.createReadStream('public/styles.css', 'utf8').pipe(res);
-  } else {
-    res.writeHead(200, { 'Content-Type': 'text/html' }); // http header
-    fs.createReadStream('public/index.html', 'utf8').pipe(res);
-  }
+  // get the file path from req.url, or '/public/index.html' if req.url is '/'
+  const filePath = ( req.url === '/' ) ? '/public/index.html' : req.url;
+
+  // determine the contentType by the file extension
+  const extname = path.extname(filePath);
+  let contentType = 'text/html';
+  if (extname === '.js') contentType = 'text/javascript';
+  else if (extname === '.css') contentType = 'text/css';
+
+  // pipe the proper file to the res object
+  res.writeHead(200, { 'Content-Type': contentType });
+  fs.createReadStream(`${__dirname}/${filePath}`, 'utf8').pipe(res);
 });
 
 // Create the WebSocket Server (ws) using the HTTP server
@@ -52,13 +44,13 @@ function broadcast(data, socketToOmit) {
 function startGame() {
   // Tell everyone the game is starting along with the names of the players
   broadcast({ 
-    type: SERVER_BROADCAST.GAME_START, 
+    type: SERVER.BROADCAST.GAME_START, 
     payload: { players } 
   });
 
   // Choose a random potato holder to start
   broadcast({
-    type: SERVER_BROADCAST.NEW_POTATO_HOLDER,
+    type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
     payload: { newPotatoHolderNumber: Math.floor(Math.random() * 4) }
   });
   
@@ -68,16 +60,16 @@ function startGame() {
     // At 0, tell everyone the game is over, stop the clock, and reset the players array
     if (clockValue === 0) {
       broadcast({ 
-        type: SERVER_BROADCAST.GAME_OVER 
+        type: SERVER.BROADCAST.GAME_OVER 
       });
-      clearInterval(interval);
-      players = [];
+      clearInterval(interval); // stop the timer
+      players.length = 0; // reset the players array. clients can refresh to start a new game
       return;
     }
     
-    // otherwise, broadcast the new clock value
+    // otherwise, broadcast the new clock value and decrement
     broadcast({
-      type: SERVER_BROADCAST.COUNTDOWN,
+      type: SERVER.BROADCAST.COUNTDOWN,
       payload: { clockValue: clockValue-- }
     });
   }, 1000);
@@ -85,34 +77,39 @@ function startGame() {
 
 // a new socket will be created for each individual client
 wsServer.on('connection', (socket) => {
-  console.log('new connection!');
 
+  // Print that a new connection has been made. Uncomment during development.
+  // console.log('new connection!');
+
+  // Anytime the connected client emits a 'message'...
   socket.on('message', (data) => {
+    
     // parse the incoming data. We expect a type and an optional payload
     const { type, payload } = JSON.parse(data);
 
-    console.log(type, payload);
+    // Print the message and payload to the server console. Uncomment during development.
+    // console.log(type, payload);
 
     switch (type) {
-      case CLIENT_MESSAGE.PASS_POTATO:
+      case CLIENT.MESSAGE.PASS_POTATO:
         // Tell everyone who the potato was passed to
         broadcast({
-          type: SERVER_BROADCAST.NEW_POTATO_HOLDER,
+          type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
           payload: { newPotatoHolderNumber: payload.newPotatoHolderNumber }
         });
         break;
-      case CLIENT_MESSAGE.NEW_USER:
+      case CLIENT.MESSAGE.NEW_USER:
         // If 4 players are already in the game, sorry :(
         if (players.length >= 4) {
           socket.send(JSON.stringify({
-            type: SERVER_MESSAGE.GAME_FULL
+            type: SERVER.MESSAGE.GAME_FULL
           }));
           return;
         }
 
         // Assign the new user a player number (0 - 4)
         socket.send(JSON.stringify({
-          type: SERVER_MESSAGE.PLAYER_ASSIGNMENT,
+          type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
           payload: { playerNumber: players.length }
         }));
         

@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="icon" href="/public/favicon.ico" type="image/x-icon" />
+  <script src="/utils/constants.js"></script>
   <title>Hot Potato</title>
 </head>
 <body>
@@ -17,166 +19,147 @@
   </div>
     
   <script>
-    (function() {
+    // DOM Elements
+    const playerElements = [
+      document.getElementById('player1'),
+      document.getElementById('player2'),
+      document.getElementById('player3'),
+      document.getElementById('player4'),
+    ];
+    const display = document.getElementById('display');
 
-      // constants
-      const PORT = 8080;
-      const CLIENT_MESSAGE = {
-        PASS_POTATO: 'PASS_POTATO',
-        NEW_USER: 'NEW_USER'
-      };
-      const SERVER_MESSAGE = {
-        PLAYER_ASSIGNMENT: 'PLAYER_ASSIGNMENT',
-        GAME_FULL: 'GAME_FULL',
-      };
-      const SERVER_BROADCAST = {
-        COUNTDOWN: 'COUNTDOWN',
-        NEW_POTATO_HOLDER: 'NEW_POTATO_HOLDER',
-        GAME_OVER: 'GAME_OVER',
-        GAME_START: 'GAME_START'
-      }
+    // Application Variables
+    let ws;
+    let playerNumber;
+    let playerName = '';
+    let potatoHolderNumber;
+    let gameIsRunning = false;
 
-      // DOM Elements
-      const playerElements = [
-        document.getElementById('player1'),
-        document.getElementById('player2'),
-        document.getElementById('player3'),
-        document.getElementById('player4'),
-      ];
-      const display = document.getElementById('display');
+    ////////////////////////////////////////////////
+    //////////////// DOM LOGIC /////////////////////
+    ////////////////////////////////////////////////
+    
+    function updateDisplay(value) {
+      display.innerHTML = value;
+    }
 
-      // Application Variables
-      let ws;
-      let playerNumber;
-      let playerName = '';
-      let potatoHolderNumber;
-      let gameIsRunning = false;
+    function updatePlayerDisplayName(playerNumber, name) {
+      playerElements[playerNumber].innerHTML = name;
+    }
+    
+    function updateCurrentPotatoHolder(newPotatoHolderNumber) {
+      // remove the hasPotato class from any existing elements that have it
+      playerElements.forEach((playerElement) => {
+        playerElement.classList.remove('hasPotato');
+      })
+      playerElements[potatoHolderNumber].classList += ' hasPotato';
+    }
+    
+    // make each other player clickable
+    playerElements.forEach((player, i) => {
+      player.onclick = function() {
 
-      ////////////////////////////////////////////////
-      //////////////// DOM LOGIC /////////////////////
-      ////////////////////////////////////////////////
-      
-      function updateDisplay(value) {
-        display.innerHTML = value;
-      }
-
-      function updatePlayerDisplayName(playerNumber, name) {
-        playerElements[playerNumber].innerHTML = name;
-      }
-      
-      function updateCurrentPotatoHolder(newPotatoHolderNumber) {
-        // remove the hasPotato class from any existing elements that have it
-        playerElements.forEach((playerElement) => {
-          playerElement.classList.remove('hasPotato');
-        })
-        playerElements[potatoHolderNumber].classList += ' hasPotato';
-      }
-      
-      // make each other player clickable
-      playerElements.forEach((player, i) => {
-        player.onclick = function() {
-
-          // if the game isn't running, i'm not holding the potato, OR, I click on myself, do nothing
-          if (!gameIsRunning || playerNumber !== potatoHolderNumber || playerNumber === i) {
-            return;
-          }
-          
-          // otherwise...
-          // set the potatoHolderNumber to be the player that was clicked on
-          potatoHolderNumber = i;
-          
-          // tell the server who the client clicked on
-          ws.send(JSON.stringify({
-            type: CLIENT_MESSAGE.PASS_POTATO,
-            payload: { newPotatoHolderNumber: i }
-          }));
-        } 
-      });
-
-      ////////////////////////////////////////////////
-      ///////////////// WS LOGIC /////////////////////
-      ////////////////////////////////////////////////
-
-      function init() {
-        // if a WebSocket connection exists already, close it
-        if (ws) {
-          ws.onerror = ws.onopen = ws.onclose = null;
-          ws.close();
+        // if the game isn't running, i'm not holding the potato, OR, I click on myself, do nothing
+        if (!gameIsRunning || playerNumber !== potatoHolderNumber || playerNumber === i) {
+          return;
         }
-  
-        // create a new WebSocket connection with the server using the ws protocol
-        ws = new WebSocket('ws://localhost:' + PORT);
-  
-        // .onopen() is executed when a connection is made (when the handshake completes)
-        ws.onopen = () => {
-          console.log('Connection opened!', ws);
-          playerName = prompt('choose a name');
+        
+        // otherwise...
+        // set the potatoHolderNumber to be the player that was clicked on
+        potatoHolderNumber = i;
+        
+        // tell the server who the client clicked on
+        ws.send(JSON.stringify({
+          type: CLIENT.MESSAGE.PASS_POTATO,
+          payload: { newPotatoHolderNumber: i }
+        }));
+      } 
+    });
 
-          ws.send(JSON.stringify({
-            type: CLIENT_MESSAGE.NEW_USER,
-            payload: { playerName }
-          }));
-        }
-  
-        // .onmessage() is executed when the server sends data to a WebSocket client
-        ws.onmessage = ({ data }) => {
-          const { type, payload } = JSON.parse(data);
+    ////////////////////////////////////////////////
+    ///////////////// WS LOGIC /////////////////////
+    ////////////////////////////////////////////////
 
-          console.log(type, payload);
+    function init() {
+      // if a WebSocket connection exists already, close it
+      if (ws) {
+        ws.onerror = ws.onopen = ws.onclose = null;
+        ws.close();
+      }
 
-          switch (type) {
-            case SERVER_MESSAGE.PLAYER_ASSIGNMENT:
-              // update the client's playerNumber
-              playerNumber = payload.playerNumber;
-              updatePlayerDisplayName(playerNumber, 'You')
-              break;
-            case SERVER_BROADCAST.GAME_START:
-              gameIsRunning = true;
-              payload.players.forEach((playerName, i) => {
-                if (i !== playerNumber) {
-                  updatePlayerDisplayName(i, playerName)
-                }
-              })
-              break;
-            case SERVER_BROADCAST.COUNTDOWN:
-              updateDisplay(payload.clockValue);
-              break;
-            case SERVER_BROADCAST.NEW_POTATO_HOLDER:
-              // update the current potatoHolderNumber
-              potatoHolderNumber = payload.newPotatoHolderNumber
-              updateCurrentPotatoHolder(potatoHolderNumber);
-              break;
-              case SERVER_BROADCAST.GAME_OVER:
-                gameIsRunning = false;
-                if (potatoHolderNumber === playerNumber) {
-                  updateDisplay('You Lose :(');
-                } else {
-                updateDisplay('You Win! :)');
+      // create a new WebSocket connection with the server using the ws protocol
+      ws = new WebSocket('ws://localhost:' + PORT);
+
+      // .onopen() is executed when a connection is made (when the handshake completes)
+      ws.onopen = () => {
+        console.log('Connection opened!', ws);
+        playerName = prompt('choose a name');
+
+        ws.send(JSON.stringify({
+          type: CLIENT.MESSAGE.NEW_USER,
+          payload: { playerName }
+        }));
+      }
+
+      // .onmessage() is executed when the server sends data to a WebSocket client
+      ws.onmessage = ({ data }) => {
+        const { type, payload } = JSON.parse(data);
+
+        console.log(type, payload);
+
+        switch (type) {
+          case SERVER.MESSAGE.PLAYER_ASSIGNMENT:
+            // update the client's playerNumber
+            playerNumber = payload.playerNumber;
+            updatePlayerDisplayName(playerNumber, 'You')
+            break;
+          case SERVER.BROADCAST.GAME_START:
+            gameIsRunning = true;
+            payload.players.forEach((playerName, i) => {
+              if (i !== playerNumber) {
+                updatePlayerDisplayName(i, playerName)
               }
-              break;
-            case SERVER_MESSAGE.GAME_FULL:
-              updateDisplay('Game Full :(')
-              break;
-            default:
-              break;
-          }
-        };
-
-        // .onclose is executed when the socket connection is closed
-        ws.onclose = function() {
-          updateDisplay('No WebSocket connection :(');
-          ws = null;
+            })
+            break;
+          case SERVER.BROADCAST.COUNTDOWN:
+            updateDisplay(payload.clockValue);
+            break;
+          case SERVER.BROADCAST.NEW_POTATO_HOLDER:
+            // update the current potatoHolderNumber
+            potatoHolderNumber = payload.newPotatoHolderNumber
+            updateCurrentPotatoHolder(potatoHolderNumber);
+            break;
+            case SERVER.BROADCAST.GAME_OVER:
+              gameIsRunning = false;
+              if (potatoHolderNumber === playerNumber) {
+                updateDisplay('You Lose :(');
+              } else {
+              updateDisplay('You Win! :)');
+            }
+            break;
+          case SERVER.MESSAGE.GAME_FULL:
+            updateDisplay('Game Full :(')
+            break;
+          default:
+            break;
         }
+      };
 
-        // .onerror is executed when error event occurs on the WebSocket connection
-        ws.onerror = function(e) {
-          console.error("WebSocket error observed:", e);
-          ws = null;
-        }
+      // .onclose is executed when the socket connection is closed
+      ws.onclose = function() {
+        updateDisplay('No WebSocket connection :(');
+        ws = null;
       }
-  
-      init();
-    })();
+
+      // .onerror is executed when error event occurs on the WebSocket connection
+      ws.onerror = function(e) {
+        console.error("WebSocket error observed:", e);
+        ws = null;
+      }
+    }
+
+    init();
+
   </script>
 </body>
 </html>
