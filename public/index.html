@@ -10,23 +10,29 @@
   <title>Hot Potato</title>
 </head>
 <body>
-  <h1 id='display'>Waiting for game to start...</h1>
-  <div id="table">
-    <div class='player' id='player1'></div>
-    <div class='player' id='player2'></div>
-    <div class='player' id='player3'></div>
-    <div class='player' id='player4'></div>
+  <h1 id="display">Waiting for game to start...</h1>
+  <div id="table">   
+    <div class="player" id="blue"></div>
+    <div class="player" id="green"></div>
+    <div class="player" id="pink"></div>
+    <div class="player" id="yellow"></div>
   </div>
-    
+
   <script>
     // DOM Elements
-    const playerElements = [
-      document.getElementById('player1'),
-      document.getElementById('player2'),
-      document.getElementById('player3'),
-      document.getElementById('player4'),
-    ];
     const display = document.getElementById('display');
+    
+    const imagePath = 'https://static-assets.codecademy.com/Courses/Learn-WebSocket';
+    const playerElements = [];
+    const playerColors = ['blue', 'green', 'pink', 'yellow'];
+    playerColors.forEach((color) => {
+      const playerElement = document.getElementById(color);
+      const img = document.createElement('img');
+      img.src = getImgSrc(color, false);
+      img.className = 'playerAvatar';
+      playerElement.appendChild(img)
+      playerElements.push(playerElement);
+    })
 
     // Application Variables
     let ws;
@@ -43,16 +49,25 @@
       display.innerHTML = value;
     }
 
-    function updatePlayerDisplayName(playerNumber, name) {
-      playerElements[playerNumber].innerHTML = name;
+    function getImgSrc(color, hasPotato) {
+      return `${imagePath}/${color}_${hasPotato ? 'hot' : 'cold'}.png`;
+    }
+
+    function setPlayerStar(playerNumber) {
+      const playerElement = playerElements[playerNumber];
+      const img = document.createElement('img');
+      img.src = `${imagePath}/you_star.png`;
+      img.className = 'star'
+      playerElement.appendChild(img);
     }
     
-    function updateCurrentPotatoHolder(newPotatoHolderNumber) {
+    function updateCurrentPotatoHolder() {
       // remove the hasPotato class from any existing elements that have it
-      playerElements.forEach((playerElement) => {
-        playerElement.classList.remove('hasPotato');
+      playerElements.forEach((playerElement, i) => {
+        const playerAvatar = playerElement.childNodes[0];
+        const hasPotato = i === potatoHolderNumber;
+        playerAvatar.src = getImgSrc(playerColors[i], hasPotato);
       })
-      playerElements[potatoHolderNumber].classList += ' hasPotato';
     }
     
     // make each other player clickable
@@ -93,11 +108,9 @@
       // .onopen() is executed when a connection is made (when the handshake completes)
       ws.onopen = () => {
         console.log('Connection opened!', ws);
-        playerName = prompt('choose a name');
 
         ws.send(JSON.stringify({
-          type: CLIENT.MESSAGE.NEW_USER,
-          payload: { playerName }
+          type: CLIENT.MESSAGE.NEW_USER
         }));
       }
 
@@ -111,15 +124,10 @@
           case SERVER.MESSAGE.PLAYER_ASSIGNMENT:
             // update the client's playerNumber
             playerNumber = payload.playerNumber;
-            updatePlayerDisplayName(playerNumber, 'You')
+            setPlayerStar(playerNumber);
             break;
           case SERVER.BROADCAST.GAME_START:
             gameIsRunning = true;
-            payload.players.forEach((playerName, i) => {
-              if (i !== playerNumber) {
-                updatePlayerDisplayName(i, playerName)
-              }
-            })
             break;
           case SERVER.BROADCAST.COUNTDOWN:
             updateDisplay(payload.clockValue);
@@ -127,7 +135,7 @@
           case SERVER.BROADCAST.NEW_POTATO_HOLDER:
             // update the current potatoHolderNumber
             potatoHolderNumber = payload.newPotatoHolderNumber
-            updateCurrentPotatoHolder(potatoHolderNumber);
+            updateCurrentPotatoHolder();
             break;
             case SERVER.BROADCAST.GAME_OVER:
               gameIsRunning = false;
