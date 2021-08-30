@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const { PORT, MAX_TIME, CLIENT, SERVER } = CONSTANTS;
 
 // Application Variables;
-const players = [];
+let players = 0;
 
 // Create the HTTP server
 const server = http.createServer((req, res) => {
@@ -44,14 +44,13 @@ function broadcast(data, socketToOmit) {
 function startGame() {
   // Tell everyone the game is starting along with the names of the players
   broadcast({ 
-    type: SERVER.BROADCAST.GAME_START, 
-    payload: { players } 
+    type: SERVER.BROADCAST.GAME_START
   });
 
   // Choose a random potato holder to start
   broadcast({
     type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-    payload: { newPotatoHolderNumber: Math.floor(Math.random() * 4) }
+    payload: { newPotatoHolderIndex: Math.floor(Math.random() * 4) }
   });
   
   // Start the clock
@@ -63,7 +62,7 @@ function startGame() {
         type: SERVER.BROADCAST.GAME_OVER 
       });
       clearInterval(interval); // stop the timer
-      players.length = 0; // reset the players array. clients can refresh to start a new game
+      players = 0; // reset the players array. clients can refresh to start a new game
       return;
     }
     
@@ -95,12 +94,12 @@ wsServer.on('connection', (socket) => {
         // Tell everyone who the potato was passed to
         broadcast({
           type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-          payload: { newPotatoHolderNumber: payload.newPotatoHolderNumber }
+          payload
         });
         break;
       case CLIENT.MESSAGE.NEW_USER:
         // If 4 players are already in the game, sorry :(
-        if (players.length >= 4) {
+        if (players >= 4) {
           socket.send(JSON.stringify({
             type: SERVER.MESSAGE.GAME_FULL
           }));
@@ -110,14 +109,14 @@ wsServer.on('connection', (socket) => {
         // Assign the new user a player number (0 - 4)
         socket.send(JSON.stringify({
           type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
-          payload: { playerNumber: players.length }
+          payload: { clientPlayerIndex: players }
         }));
         
         // Add the new player name to the players list
-        players.push(payload.playerName)
+        players++;
 
         // If they are the 4th player, start the game
-        if (players.length === 4) {
+        if (players === 4) {
           startGame();
         }
         break;
