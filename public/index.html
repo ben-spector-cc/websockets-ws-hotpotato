@@ -56,7 +56,8 @@
     playerElements.forEach((playerElement, i) => {
       playerElement.onclick = function() {
         // Only allow clicks if the game is running, the client is holding the potato, and they didn't click on themselves
-        if (gameIsRunning && clientPlayerIndex === potatoHolderIndex && clientPlayerIndex === i ) {  
+        if (gameIsRunning && clientPlayerIndex === potatoHolderIndex && clientPlayerIndex !== i ) {  
+          console.log('clicked on ' + i);
           // and pass the potato
           passThePotatoTo(i);
         }
@@ -67,6 +68,8 @@
     function passThePotatoTo(playerIndex) { 
       // set the potatoHolderIndex to be the player that was clicked on
       potatoHolderIndex = playerIndex;
+
+      console.log(playerIndex)
       
       // TODO: tell the server who the client clicked on
       wsClient.send(JSON.stringify({
