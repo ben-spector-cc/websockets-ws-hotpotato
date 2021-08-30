@@ -99,9 +99,10 @@
       }
 
       // TODO: .onmessage() is executed when the server sends data to a WebSocket client
-      wsClient.onmessage = (event) => {
+      wsClient.onmessage = (messageEvent) => {
         // TODO: Parse the event.data
-        const { type, payload } = JSON.parse(event.data);
+        const { data } = messageEvent;
+        const { type, payload } = JSON.parse(data);
 
         // TODO: Switch on the type and call the correct function, passing along the payload data
         switch (type) {
