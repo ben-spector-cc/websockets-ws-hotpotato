@@ -50,7 +50,7 @@ function startGame() {
   // Choose a random potato holder to start
   broadcast({
     type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-    payload: { newPotatoHolderNumber: Math.floor(Math.random() * 4) }
+    payload: { newPotatoHolderIndex: Math.floor(Math.random() * 4) }
   });
   
   // Start the clock
@@ -94,7 +94,7 @@ wsServer.on('connection', (socket) => {
         // Tell everyone who the potato was passed to
         broadcast({
           type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-          payload: { newPotatoHolderNumber: payload.newPotatoHolderNumber }
+          payload
         });
         break;
       case CLIENT.MESSAGE.NEW_USER:
@@ -109,7 +109,7 @@ wsServer.on('connection', (socket) => {
         // Assign the new user a player number (0 - 4)
         socket.send(JSON.stringify({
           type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
-          payload: { playerNumber: players }
+          payload: { clientPlayerIndex: players }
         }));
         
         // Add the new player name to the players list
