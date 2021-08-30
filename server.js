@@ -1,5 +1,9 @@
+///////////////////////////////////////////////
+///////////// IMPORTS + VARIABLES /////////////
+///////////////////////////////////////////////
+
 const CONSTANTS = require('./utils/constants.js');
-const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
@@ -8,10 +12,18 @@ const WebSocket = require('ws');
 const { PORT, MAX_TIME, CLIENT, SERVER } = CONSTANTS;
 
 // Application Variables;
-let players = 0;
+let nextPlayerIndex = 0;
+
+///////////////////////////////////////////////
+///////////// HTTP SERVER LOGIC ///////////////
+///////////////////////////////////////////////
+
+const privateKey = fs.readFileSync('../sslcert/key.pem', 'utf8');
+const certificate = fs.readFileSync('../sslcert/cert.pem', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
 
 // Create the HTTP server
-const server = http.createServer((req, res) => {
+const server = https.createServer(credentials, (req, res) => {
   // get the file path from req.url, or '/public/index.html' if req.url is '/'
   const filePath = ( req.url === '/' ) ? '/public/index.html' : req.url;
 
@@ -26,53 +38,13 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(`${__dirname}/${filePath}`, 'utf8').pipe(res);
 });
 
+///////////////////////////////////////////////
+////////////////// WS LOGIC ///////////////////
+///////////////////////////////////////////////
+
 // Create the WebSocket Server (ws) using the HTTP server
 const wsServerOptions = { server };
 const wsServer = new WebSocket.Server(wsServerOptions);
-
-// include a socket if you want to leave it out, otherwise broadcast to every open socket
-function broadcast(data, socketToOmit) {
-  // All connected sockets can be found at wsServer.clients
-  wsServer.clients.forEach((client) => {
-    // Send to all clients in the open readyState, excluding the socketToOmit if provided
-    if (client.readyState === WebSocket.OPEN && client !== socketToOmit) {
-      client.send(JSON.stringify(data));
-    }
-  });
-}
-
-function startGame() {
-  // Tell everyone the game is starting along with the names of the players
-  broadcast({ 
-    type: SERVER.BROADCAST.GAME_START
-  });
-
-  // Choose a random potato holder to start
-  broadcast({
-    type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-    payload: { newPotatoHolderIndex: Math.floor(Math.random() * 4) }
-  });
-  
-  // Start the clock
-  let clockValue = MAX_TIME;
-  const interval = setInterval(() => {
-    // At 0, tell everyone the game is over, stop the clock, and reset the players array
-    if (clockValue === 0) {
-      broadcast({ 
-        type: SERVER.BROADCAST.GAME_OVER 
-      });
-      clearInterval(interval); // stop the timer
-      players = 0; // reset the players array. clients can refresh to start a new game
-      return;
-    }
-    
-    // otherwise, broadcast the new clock value and decrement
-    broadcast({
-      type: SERVER.BROADCAST.COUNTDOWN,
-      payload: { clockValue: clockValue-- }
-    });
-  }, 1000);
-}
 
 // a new socket will be created for each individual client
 wsServer.on('connection', (socket) => {
@@ -98,26 +70,40 @@ wsServer.on('connection', (socket) => {
         });
         break;
       case CLIENT.MESSAGE.NEW_USER:
+        if (nextPlayerIndex < 4) {
+          // Assign the new user a player index (0 | 1 | 2 | 3)
+          socket.send(JSON.stringify({
+            type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
+            payload: { clientPlayerIndex: nextPlayerIndex }
+          }));
+          
+          // Increment the number of players in the game
+          nextPlayerIndex++;
+          
+          // If they are the 4th player, start the game
+          if (nextPlayerIndex === 4) {
+            // Tell everyone the game is starting
+            broadcast({ 
+              type: SERVER.BROADCAST.GAME_START
+            });
+
+            // Choose a random potato holder to start
+            const randomFirstPotatoHolder = Math.floor(Math.random() * 4);
+            broadcast({
+              type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
+              payload: { newPotatoHolderIndex: randomFirstPotatoHolder }
+            });
+
+            // Start the timer
+            startTimer();
+          }
+        } 
+        
         // If 4 players are already in the game, sorry :(
-        if (players >= 4) {
+        else {
           socket.send(JSON.stringify({
             type: SERVER.MESSAGE.GAME_FULL
           }));
-          return;
-        }
-
-        // Assign the new user a player number (0 - 4)
-        socket.send(JSON.stringify({
-          type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
-          payload: { clientPlayerIndex: players }
-        }));
-        
-        // Add the new player name to the players list
-        players++;
-
-        // If they are the 4th player, start the game
-        if (players === 4) {
-          startGame();
         }
         break;
       default:
@@ -125,6 +111,46 @@ wsServer.on('connection', (socket) => {
     }
   });
 });
+
+///////////////////////////////////////////////
+////////////// HELPER FUNCTIONS ///////////////
+///////////////////////////////////////////////
+
+// include a socket if you want to leave it out, otherwise broadcast to every open socket
+function broadcast(data, socketToOmit) {
+  // All connected sockets can be found at wsServer.clients
+  wsServer.clients.forEach((client) => {
+    // Send to all clients in the open readyState, excluding the socketToOmit if provided
+    if (client.readyState === WebSocket.OPEN && client !== socketToOmit) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
+
+function startTimer() {
+  // Start the clock
+  let clockValue = MAX_TIME;
+  const interval = setInterval(() => {
+    // broadcast the new clock value and decrement until the clocks reaches 0
+    if (clockValue > 0) {
+      broadcast({
+        type: SERVER.BROADCAST.COUNTDOWN,
+        payload: { clockValue: clockValue-- }
+      });
+    }
+
+    // At 0: stop the clock, reset the players index, and tell everyone the game is over 
+    else {
+      clearInterval(interval); // stop the timer
+      nextPlayerIndex = 0; // reset the players index
+      
+      // Tell all clients the game is over
+      broadcast({ 
+        type: SERVER.BROADCAST.GAME_OVER 
+      });
+    }
+  }, 1000);
+}
 
 // Start the server listening on localhost:8080
 server.listen(PORT, () => {

@@ -41,10 +41,11 @@ html, body {
 }
 
 .star {
-  width: min(10vw, 50px);
-  height: min(10vw, 50px);
+  width: min(25%);
+  height: min(20%);
   position: relative;
-  right: 30px;
+  right: 20%;
+  top: 5%;
 }
 
 .player { 
