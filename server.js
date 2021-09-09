@@ -71,7 +71,7 @@ wsServer.on('connection', (socket) => {
 
     switch (type) {
       case CLIENT.MESSAGE.PASS_POTATO:
-        passThePotato();
+        passThePotato(payload.newPotatoHolderIndex);
         break;
       case CLIENT.MESSAGE.NEW_USER:
         handleNewUser(socket);
@@ -100,11 +100,11 @@ function broadcast(data, socketToOmit) {
 /* 
 Change: Added this helper
 */
-function passThePotato() {
+function passThePotatoTo(newPotatoHolderIndex) {
   // Tell everyone who the potato was passed to
   broadcast({
     type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-    payload
+    payload: { newPotatoHolderIndex }
   });
 }
 
@@ -142,10 +142,7 @@ Change: encapsulate all start game logic here
 function startGame() {
   // Choose a random potato holder to start
   const randomFirstPotatoHolder = Math.floor(Math.random() * 4);
-  broadcast({
-    type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-    payload: { newPotatoHolderIndex: randomFirstPotatoHolder }
-  });
+  passThePotatoTo(randomFirstPotatoHolder);
 
   // Start the clock
   let clockValue = MAX_TIME;
