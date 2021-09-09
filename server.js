@@ -2,8 +2,12 @@
 ///////////// IMPORTS + VARIABLES /////////////
 ///////////////////////////////////////////////
 
+/* 
+Change: using http instead of https
+*/
+
 const CONSTANTS = require('./utils/constants.js');
-const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
@@ -18,12 +22,12 @@ let nextPlayerIndex = 0;
 ///////////// HTTP SERVER LOGIC ///////////////
 ///////////////////////////////////////////////
 
-const privateKey = fs.readFileSync('../sslcert/key.pem', 'utf8');
-const certificate = fs.readFileSync('../sslcert/cert.pem', 'utf8');
-const credentials = { key: privateKey, cert: certificate };
+/* 
+Change: using http instead of https and removing credentials
+*/
 
 // Create the HTTP server
-const server = https.createServer(credentials, (req, res) => {
+const server = http.createServer((req, res) => {
   // get the file path from req.url, or '/public/index.html' if req.url is '/'
   const filePath = ( req.url === '/' ) ? '/public/index.html' : req.url;
 
@@ -46,6 +50,10 @@ const server = https.createServer(credentials, (req, res) => {
 const wsServerOptions = { server };
 const wsServer = new WebSocket.Server(wsServerOptions);
 
+/* 
+Change: removing logic from the switch statements. moved into helper functions
+*/
+
 // a new socket will be created for each individual client
 wsServer.on('connection', (socket) => {
 
@@ -63,48 +71,10 @@ wsServer.on('connection', (socket) => {
 
     switch (type) {
       case CLIENT.MESSAGE.PASS_POTATO:
-        // Tell everyone who the potato was passed to
-        broadcast({
-          type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-          payload
-        });
+        passThePotato();
         break;
       case CLIENT.MESSAGE.NEW_USER:
-        if (nextPlayerIndex < 4) {
-          // Assign the new user a player index (0 | 1 | 2 | 3)
-          socket.send(JSON.stringify({
-            type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
-            payload: { clientPlayerIndex: nextPlayerIndex }
-          }));
-          
-          // Increment the number of players in the game
-          nextPlayerIndex++;
-          
-          // If they are the 4th player, start the game
-          if (nextPlayerIndex === 4) {
-            // Tell everyone the game is starting
-            broadcast({ 
-              type: SERVER.BROADCAST.GAME_START
-            });
-
-            // Choose a random potato holder to start
-            const randomFirstPotatoHolder = Math.floor(Math.random() * 4);
-            broadcast({
-              type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
-              payload: { newPotatoHolderIndex: randomFirstPotatoHolder }
-            });
-
-            // Start the timer
-            startTimer();
-          }
-        } 
-        
-        // If 4 players are already in the game, sorry :(
-        else {
-          socket.send(JSON.stringify({
-            type: SERVER.MESSAGE.GAME_FULL
-          }));
-        }
+        handleNewUser(socket);
         break;
       default:
         break;
@@ -127,7 +97,56 @@ function broadcast(data, socketToOmit) {
   });
 }
 
-function startTimer() {
+/* 
+Change: Added this helper
+*/
+function passThePotato() {
+  // Tell everyone who the potato was passed to
+  broadcast({
+    type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
+    payload
+  });
+}
+
+/* 
+Change: added this helper
+*/
+function handleNewUser(socket) {
+  if (nextPlayerIndex < 4) {
+    // Assign the new user a player index (0 | 1 | 2 | 3)
+    socket.send(JSON.stringify({
+      type: SERVER.MESSAGE.PLAYER_ASSIGNMENT,
+      payload: { clientPlayerIndex: nextPlayerIndex }
+    }));
+    
+    // Increment the number of players in the game
+    nextPlayerIndex++;
+    
+    // If they are the 4th player, start the game
+    if (nextPlayerIndex === 4) {
+      startGame();
+    }
+  } 
+  
+  // If 4 players are already in the game, sorry :(
+  else {
+    socket.send(JSON.stringify({
+      type: SERVER.MESSAGE.GAME_FULL
+    }));
+  }
+}
+
+/* 
+Change: encapsulate all start game logic here
+*/
+function startGame() {
+  // Choose a random potato holder to start
+  const randomFirstPotatoHolder = Math.floor(Math.random() * 4);
+  broadcast({
+    type: SERVER.BROADCAST.NEW_POTATO_HOLDER,
+    payload: { newPotatoHolderIndex: randomFirstPotatoHolder }
+  });
+
   // Start the clock
   let clockValue = MAX_TIME;
   const interval = setInterval(() => {
@@ -154,5 +173,5 @@ function startTimer() {
 
 // Start the server listening on localhost:8080
 server.listen(PORT, () => {
-  console.log(`Listening on: https://localhost:${server.address().port}`);
+  console.log(`Listening on: http://localhost:${server.address().port}`);
 });

@@ -14,19 +14,21 @@
       <h1 id="display">Waiting for game to start...</h1>
   </div>
   <div id="game">
-      <div id="table">   
-    <div class="player" id="BLUE"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/BLUE_COLD.png"></div>
-    <div class="player" id="GREEN"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/GREEN_COLD.png"></div>
-    <div class="player" id="PINK"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/PINK_COLD.png"></div>
-    <div class="player" id="YELLOW"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/YELLOW_COLD.png"></div>
+    <div id="table">   
+      <div class="player" id="BLUE"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/BLUE_COLD.png"></div>
+      <div class="player" id="GREEN"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/GREEN_COLD.png"></div>
+      <div class="player" id="PINK"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/PINK_COLD.png"></div>
+      <div class="player" id="YELLOW"><img class="playerAvatar" src="https://static-assets.codecademy.com/Courses/Learn-WebSocket/YELLOW_COLD.png"></div>
+    </div>
   </div>
-  </div>
-
-
   <script>
     ////////////////////////////////////////////////
     ////////////// VARIABLES ///////////////////////
     ////////////////////////////////////////////////
+
+    /* 
+    Changes: Removed gameIsRunning variable and the startGame helper
+    */
     
     // DOM Elements
     const display = document.getElementById('display');
@@ -35,7 +37,6 @@
     let wsClient = null;            // The client-side WebSocket connection variable: new WebSocket() 
     let clientPlayerIndex = null;   // The index value of the client: 0 | 1 | 2 | 3
     let potatoHolderIndex = null;   // The index value of the current holder of the potato: 0 | 1 | 2 | 3
-    let gameIsRunning = false;      // True when there are 4 or more people, false otherwise.
     
     ////////////////////////////////////////////////
     //////////// DOM SETUP /////////////////////////
@@ -53,13 +54,12 @@
     const playerElements = [...document.getElementsByClassName('player')];
 
     // make each other player clickable
-    playerElements.forEach((playerElement, i) => {
+    playerElements.forEach((playerElement, playerIndex) => {
       playerElement.onclick = function() {
         // Only allow clicks if the game is running, the client is holding the potato, and they didn't click on themselves
-        if (gameIsRunning && clientPlayerIndex === potatoHolderIndex && clientPlayerIndex !== i ) {  
-          console.log('clicked on ' + i);
+        if (clientPlayerIndex === potatoHolderIndex && clientPlayerIndex !== playerIndex ) {  
           // and pass the potato
-          passThePotatoTo(i);
+          passThePotatoTo(playerIndex);
         }
       } 
     });  
@@ -68,8 +68,6 @@
     function passThePotatoTo(playerIndex) { 
       // set the potatoHolderIndex to be the player that was clicked on
       potatoHolderIndex = playerIndex;
-
-      console.log(playerIndex)
       
       // TODO: tell the server who the client clicked on
       wsClient.send(JSON.stringify({
@@ -89,8 +87,9 @@
         wsClient.close();
       }
 
+      const URL = 'ws://localhost:' + PORT;
+      
       // TODO: create a new WebSocket connection with the server using the wss protocol
-      const URL = 'wss://localhost:' + PORT;
       wsClient = new WebSocket(URL);
 
       // TODO: .onopen() is executed when a connection is made (when the handshake completes)
@@ -111,9 +110,6 @@
           case SERVER.MESSAGE.PLAYER_ASSIGNMENT:
             // update the client's clientPlayerIndex
             setPlayerIndex(payload.clientPlayerIndex);
-            break;
-          case SERVER.BROADCAST.GAME_START:
-            startGame();
             break;
           case SERVER.BROADCAST.COUNTDOWN:
             countDown(payload.clockValue);
@@ -186,12 +182,7 @@
       })
     }
 
-    function startGame() {
-      gameIsRunning = true;
-    }
-
     function endGame() {
-      gameIsRunning = false;
       if (potatoHolderIndex === clientPlayerIndex) {
         updateDisplay('You Lose', '#ff0000b5');
       } else {
