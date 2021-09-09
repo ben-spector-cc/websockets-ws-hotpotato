@@ -151,8 +151,10 @@ function startGame() {
     if (clockValue > 0) {
       broadcast({
         type: SERVER.BROADCAST.COUNTDOWN,
-        payload: { clockValue: clockValue-- }
+        payload: { clockValue: clockValue }
       });
+
+      clockValue--;
     }
 
     // At 0: stop the clock, reset the players index, and tell everyone the game is over 
