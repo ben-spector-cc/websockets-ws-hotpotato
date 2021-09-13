@@ -33,8 +33,6 @@
     ////////////////////////////////////////////////
     //////////// DOM SETUP /////////////////////////
     ////////////////////////////////////////////////
-
-    const display = document.getElementById('display');
     
     // Render the four players
     const playerColors = ['BLUE', 'GREEN', 'PINK', 'YELLOW'];
@@ -135,6 +133,8 @@
     //////////// DOM HELPER FUNCTIONS //////////////
     ////////////////////////////////////////////////
 
+    const display = document.getElementById('display');
+    
     function updateDisplay(value, backgroundColor) {
       display.innerHTML = value;
       if (backgroundColor) {
