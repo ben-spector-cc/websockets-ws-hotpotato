@@ -64,18 +64,6 @@
       } 
     });  
 
-    // Sets the current potatoHolderIndex ands sends it to the server
-    function passThePotatoTo(playerIndex) { 
-      // set the potatoHolderIndex to be the player that was clicked on
-      potatoHolderIndex = playerIndex;
-      
-      // TODO: tell the server who the client clicked on
-      wsClient.send(JSON.stringify({
-        type: CLIENT.MESSAGE.PASS_POTATO,
-        payload: { newPotatoHolderIndex: playerIndex }
-      }));
-    }
-
     ////////////////////////////////////////////////
     ///////////////// WS LOGIC /////////////////////
     ////////////////////////////////////////////////
@@ -139,6 +127,18 @@
         console.error("WebSocket error observed:", e);
         wsClient = null;
       }
+    }
+
+    // Sets the current potatoHolderIndex ands sends it to the server
+    function passThePotatoTo(playerIndex) { 
+      // set the potatoHolderIndex to be the player that was clicked on
+      potatoHolderIndex = playerIndex;
+      
+      // TODO: tell the server who the client clicked on
+      wsClient.send(JSON.stringify({
+        type: CLIENT.MESSAGE.PASS_POTATO,
+        payload: { newPotatoHolderIndex: playerIndex }
+      }));
     }
     
     // Start the WebSocket server
