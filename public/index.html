@@ -25,15 +25,7 @@
     ////////////////////////////////////////////////
     ////////////// VARIABLES ///////////////////////
     ////////////////////////////////////////////////
-
-    /* 
-    Changes: Removed gameIsRunning variable and the startGame helper
-    */
     
-    // DOM Elements
-    const display = document.getElementById('display');
-    
-    // Application Variables
     let wsClient = null;            // The client-side WebSocket connection variable: new WebSocket() 
     let clientPlayerIndex = null;   // The index value of the client: 0 | 1 | 2 | 3
     let potatoHolderIndex = null;   // The index value of the current holder of the potato: 0 | 1 | 2 | 3
@@ -42,13 +34,8 @@
     //////////// DOM SETUP /////////////////////////
     ////////////////////////////////////////////////
 
-    function updateDisplay(value, backgroundColor) {
-      display.innerHTML = value;
-      if (backgroundColor) {
-        display.style.background = backgroundColor;
-      }
-    }
-
+    const display = document.getElementById('display');
+    
     // Render the four players
     const playerColors = ['BLUE', 'GREEN', 'PINK', 'YELLOW'];
     const playerElements = [...document.getElementsByClassName('player')];
@@ -145,8 +132,15 @@
     init();
 
     ////////////////////////////////////////////////
-    //////////// HELPER FUNCTIONS //////////////////
+    //////////// DOM HELPER FUNCTIONS //////////////
     ////////////////////////////////////////////////
+
+    function updateDisplay(value, backgroundColor) {
+      display.innerHTML = value;
+      if (backgroundColor) {
+        display.style.background = backgroundColor;
+      }
+    }
 
     // Render the current time with a different color based on the time value
     function countDown(time) {
