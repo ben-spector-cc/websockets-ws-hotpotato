@@ -60,7 +60,7 @@ wsServer.on('connection', (socket) => {
 
     switch (type) {
       case CLIENT.MESSAGE.PASS_POTATO:
-        passThePotato(payload.newPotatoHolderIndex);
+        passThePotatoTo(payload.newPotatoHolderIndex);
         break;
       case CLIENT.MESSAGE.NEW_USER:
         handleNewUser(socket);

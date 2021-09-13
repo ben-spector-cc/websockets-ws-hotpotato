@@ -125,16 +125,13 @@
         payload: { newPotatoHolderIndex: playerIndex }
       }));
     }
-    
-    // Start the WebSocket server
-    init();
 
     ////////////////////////////////////////////////
     //////////// DOM HELPER FUNCTIONS //////////////
     ////////////////////////////////////////////////
-
-    const display = document.getElementById('display');
     
+    const display = document.getElementById('display');
+
     function updateDisplay(value, backgroundColor) {
       display.innerHTML = value;
       if (backgroundColor) {
@@ -183,6 +180,9 @@
         updateDisplay('You Win!', '#63fe34a1');
       }
     }
+
+    // Start the WebSocket server
+    init();
 
   </script>
 </body>
